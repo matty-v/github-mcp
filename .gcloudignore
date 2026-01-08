@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Environment and secrets
+.env
+.env.*
+
+# Documentation
+*.md
+
+# Container files (not needed for Cloud Functions)
+Dockerfile
+
+# Dependencies (Cloud Build will install)
+node_modules/
+
+# Build output (Cloud Build will regenerate)
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude
+.claude/
