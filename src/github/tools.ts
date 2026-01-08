@@ -185,4 +185,126 @@ export const tools: Record<string, Tool> = {
       };
     },
   },
+
+  list_issue_comments: {
+    name: "list_issue_comments",
+    description: "List comments on an issue or pull request",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        issue_number: { type: "number", description: "Issue or PR number" },
+        per_page: {
+          type: "number",
+          description: "Results per page (max 100)",
+          default: 30,
+        },
+      },
+      required: ["repo", "issue_number"],
+    },
+    handler: async (args: any) => {
+      const comments = await octokit.issues.listComments({
+        owner: config.githubOwner,
+        repo: args.repo,
+        issue_number: args.issue_number,
+        per_page: args.per_page || 30,
+      });
+      return comments.data.map((c) => ({
+        id: c.id,
+        user: c.user?.login,
+        body: c.body,
+        created_at: c.created_at,
+        url: c.html_url,
+      }));
+    },
+  },
+
+  create_pull_request: {
+    name: "create_pull_request",
+    description: "Create a pull request",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        title: { type: "string", description: "PR title" },
+        body: { type: "string", description: "PR description" },
+        head: {
+          type: "string",
+          description: "Branch containing changes (e.g., 'feature-branch')",
+        },
+        base: {
+          type: "string",
+          description: "Branch to merge into (e.g., 'main')",
+          default: "main",
+        },
+        draft: {
+          type: "boolean",
+          description: "Create as draft PR",
+          default: false,
+        },
+      },
+      required: ["repo", "title", "head"],
+    },
+    handler: async (args: any) => {
+      const pr = await octokit.pulls.create({
+        owner: config.githubOwner,
+        repo: args.repo,
+        title: args.title,
+        body: args.body || "",
+        head: args.head,
+        base: args.base || "main",
+        draft: args.draft || false,
+      });
+      return {
+        number: pr.data.number,
+        url: pr.data.html_url,
+        title: pr.data.title,
+        state: pr.data.state,
+        head: pr.data.head.ref,
+        base: pr.data.base.ref,
+      };
+    },
+  },
+
+  merge_pull_request: {
+    name: "merge_pull_request",
+    description: "Merge a pull request",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        pull_number: { type: "number", description: "PR number" },
+        commit_title: {
+          type: "string",
+          description: "Title for the merge commit (optional)",
+        },
+        commit_message: {
+          type: "string",
+          description: "Message for the merge commit (optional)",
+        },
+        merge_method: {
+          type: "string",
+          enum: ["merge", "squash", "rebase"],
+          description: "Merge method to use",
+          default: "merge",
+        },
+      },
+      required: ["repo", "pull_number"],
+    },
+    handler: async (args: any) => {
+      const result = await octokit.pulls.merge({
+        owner: config.githubOwner,
+        repo: args.repo,
+        pull_number: args.pull_number,
+        commit_title: args.commit_title,
+        commit_message: args.commit_message,
+        merge_method: args.merge_method || "merge",
+      });
+      return {
+        merged: result.data.merged,
+        message: result.data.message,
+        sha: result.data.sha,
+      };
+    },
+  },
 };
