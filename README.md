@@ -1,22 +1,46 @@
 # GitHub MCP Server
 
-A personal GitHub MCP server for Claude.ai with Google OAuth authentication. Only your Google account can authorize access.
+A personal GitHub MCP server for Claude.ai with Google OAuth authentication. Deployed to Google Cloud Functions.
 
-## What it does
+## Features
 
 - Connects Claude.ai (web/mobile) to your GitHub repos
-- Creates issues to trigger your Claude Code GitHub Action
-- Authenticates via Google OAuth (only your email allowed)
+- Full GitHub API access: repos, issues, PRs, reviews, and Actions
+- Google OAuth authentication (only your email allowed)
+- Landing page with tool documentation
 
-## Tools available
+## Tools (15 total)
 
+### Repositories
 | Tool | Description |
 |------|-------------|
 | `list_repos` | List your GitHub repositories |
-| `create_issue` | Create an issue (triggers your Claude Code action) |
+
+### Issues
+| Tool | Description |
+|------|-------------|
+| `create_issue` | Create an issue with labels |
 | `get_issue` | Get details of a specific issue |
 | `list_issues` | List issues in a repository |
 | `add_issue_comment` | Add a comment to an issue |
+| `list_issue_comments` | List comments on an issue or PR |
+
+### Pull Requests
+| Tool | Description |
+|------|-------------|
+| `create_pull_request` | Create a PR (supports draft) |
+| `get_pull_request` | Get PR details (mergeable state, diff stats) |
+| `merge_pull_request` | Merge a PR (merge, squash, or rebase) |
+| `list_pr_checks` | List CI check runs for a PR |
+| `list_pr_reviews` | List reviews on a PR |
+
+### GitHub Actions
+| Tool | Description |
+|------|-------------|
+| `list_workflows` | List workflows in a repo |
+| `list_workflow_runs` | List recent runs (filter by workflow, branch, status) |
+| `get_workflow_run` | Get run details (status, conclusion, commit) |
+| `list_workflow_run_jobs` | List jobs and steps for a run |
 
 ## Setup
 
@@ -28,85 +52,81 @@ A personal GitHub MCP server for Claude.ai with Google OAuth authentication. Onl
 4. Add your email to test users
 5. Go to "Credentials" → "Create Credentials" → "OAuth client ID"
 6. Choose "Web application"
-7. Add authorized redirect URI: `https://YOUR-CLOUD-RUN-URL/oauth/callback`
+7. Add authorized redirect URI: `https://YOUR-FUNCTION-URL/oauth/callback`
    (You'll update this after deploying)
 8. Copy the Client ID and Client Secret
 
 ### 2. Create GitHub Personal Access Token
 
 1. Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
-2. Generate new token (classic)
-3. Select scopes: `repo` (for private repos) or `public_repo` (public only)
-4. Copy the token
+2. Generate new token (classic or fine-grained)
+3. For classic: select `repo` scope
+4. For fine-grained: enable Issues (read/write), Pull requests (read/write), Actions (read), Metadata (read)
+5. Copy the token
 
-### 3. Deploy to Cloud Run
-
-```bash
-# Clone/copy this project
-cd github-mcp-server
-
-# Set your project
-gcloud config set project YOUR_PROJECT_ID
-
-# Build and deploy
-gcloud run deploy github-mcp-server \
-  --source . \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --set-env-vars "BASE_URL=https://PLACEHOLDER" \
-  --set-env-vars "GOOGLE_CLIENT_ID=your-client-id" \
-  --set-env-vars "GOOGLE_CLIENT_SECRET=your-client-secret" \
-  --set-env-vars "ALLOWED_EMAIL=your-email@gmail.com" \
-  --set-env-vars "GITHUB_PAT=ghp_xxxxx" \
-  --set-env-vars "GITHUB_OWNER=your-github-username"
-```
-
-After deployment, note the URL (e.g., `https://github-mcp-server-abc123-uc.a.run.app`)
-
-### 4. Update BASE_URL
+### 3. Configure environment
 
 ```bash
-gcloud run services update github-mcp-server \
-  --region us-central1 \
-  --set-env-vars "BASE_URL=https://github-mcp-server-abc123-uc.a.run.app"
+cp .env.example .env
 ```
 
-### 5. Update Google OAuth redirect URI
+Edit `.env` with your values:
+```
+BASE_URL=https://your-function-url  # Set after first deploy
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+ALLOWED_EMAIL=your-email@gmail.com
+GITHUB_PAT=ghp_xxxxx
+GITHUB_OWNER=your-github-username
+```
 
-Go back to Google Cloud Console and add the authorized redirect URI:
+### 4. Deploy to Cloud Functions
+
+```bash
+# Install dependencies
+npm install
+
+# Deploy (requires gcloud CLI)
+npm run deploy
 ```
-https://github-mcp-server-abc123-uc.a.run.app/oauth/callback
-```
+
+The deploy script will:
+- Enable required GCP APIs
+- Build TypeScript
+- Deploy to Cloud Functions (Gen 2)
+- Output the function URL
+
+### 5. Update configuration
+
+After first deploy:
+
+1. Copy the function URL from the deploy output
+2. Update `BASE_URL` in `.env`
+3. Add OAuth redirect URI in Google Cloud Console: `https://YOUR-FUNCTION-URL/oauth/callback`
+4. Redeploy: `npm run deploy`
 
 ### 6. Connect to Claude.ai
 
 1. Go to [Claude.ai Settings → Connectors](https://claude.ai/settings/connectors)
-2. Click "Add custom connector"
-3. Enter:
-   - **Name:** GitHub
-   - **Remote MCP server URL:** `https://github-mcp-server-abc123-uc.a.run.app/mcp`
-4. Leave OAuth fields empty (the server handles OAuth discovery)
-5. Click "Add"
-6. Click "Connect" and authenticate with your Google account
+2. Click "Add MCP Server"
+3. Enter the server URL: `https://YOUR-FUNCTION-URL/mcp`
+4. Click "Connect" and authenticate with your Google account
 
 ## Usage
 
 Once connected, you can say things like:
 
-> "Create an issue in my disc-golf-tracker repo titled 'Add CSV export' with the claude-task label"
-
 > "List my recent repos"
 
-> "Show me open issues in my website repo"
+> "Create an issue in my project repo titled 'Add dark mode'"
 
-## Security
+> "Show me open PRs in my website repo"
 
-- **Google OAuth**: Only your Google account (ALLOWED_EMAIL) can authenticate
-- **JWT tokens**: Access tokens expire in 1 hour, refresh tokens in 30 days
-- **GitHub PAT**: Stored server-side, never exposed to Claude
-- **Cloud Run**: HTTPS by default, runs in your GCP project
+> "What's the status of the latest GitHub Actions run on main?"
 
-## Local development
+> "Get the reviews on PR #42 in my api repo"
+
+## Local Development
 
 ```bash
 # Install dependencies
@@ -114,11 +134,34 @@ npm install
 
 # Copy and edit env file
 cp .env.example .env
-# Edit .env with your values
 
-# For local dev, set BASE_URL to your ngrok/tunnel URL
-# Run with hot reload
+# For local dev, use ngrok or similar for BASE_URL
 npm run dev
+```
+
+## Security
+
+- **Google OAuth**: Only your Google account (ALLOWED_EMAIL) can authenticate
+- **JWT tokens**: Access tokens expire in 1 hour, refresh tokens in 30 days
+- **GitHub PAT**: Stored server-side as environment variable, never exposed to clients
+- **Cloud Functions**: HTTPS by default, runs in your GCP project
+
+## Project Structure
+
+```
+src/
+├── index.ts           # Entry point
+├── config.ts          # Configuration
+├── landing.ts         # Landing page
+├── auth/
+│   ├── oauth.ts       # OAuth routes + client registration
+│   ├── middleware.ts  # JWT auth middleware
+│   └── state.ts       # In-memory stores
+├── github/
+│   ├── client.ts      # Octokit instance
+│   └── tools.ts       # MCP tool definitions
+└── mcp/
+    └── handler.ts     # JSON-RPC protocol handler
 ```
 
 ## Troubleshooting
@@ -127,9 +170,13 @@ npm run dev
 - Check ALLOWED_EMAIL matches exactly (case-sensitive)
 
 **OAuth redirect fails**
-- Ensure BASE_URL matches your actual Cloud Run URL
+- Ensure BASE_URL matches your actual function URL
 - Check Google OAuth redirect URI includes `/oauth/callback`
 
 **Tools not showing in Claude**
 - Try disconnecting and reconnecting the connector
-- Check Cloud Run logs: `gcloud run logs read github-mcp-server`
+- Check Cloud Functions logs: `gcloud functions logs read github-mcp --region=us-central1 --gen2`
+
+**GitHub API returns 401**
+- Your GitHub PAT may be expired - generate a new one
+- Check the token has the required scopes
