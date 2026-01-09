@@ -415,4 +415,168 @@ export const tools: Record<string, Tool> = {
       }));
     },
   },
+
+  list_workflows: {
+    name: "list_workflows",
+    description: "List GitHub Actions workflows in a repository",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+      },
+      required: ["repo"],
+    },
+    handler: async (args: any) => {
+      const workflows = await octokit.actions.listRepoWorkflows({
+        owner: config.githubOwner,
+        repo: args.repo,
+      });
+      return workflows.data.workflows.map((w) => ({
+        id: w.id,
+        name: w.name,
+        path: w.path,
+        state: w.state,
+        url: w.html_url,
+      }));
+    },
+  },
+
+  list_workflow_runs: {
+    name: "list_workflow_runs",
+    description: "List recent GitHub Actions workflow runs",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        workflow_id: {
+          type: "string",
+          description: "Workflow ID or filename (e.g., 'ci.yml'). If omitted, lists all runs.",
+        },
+        branch: {
+          type: "string",
+          description: "Filter by branch name",
+        },
+        status: {
+          type: "string",
+          enum: ["completed", "action_required", "cancelled", "failure", "neutral", "skipped", "stale", "success", "timed_out", "in_progress", "queued", "requested", "waiting", "pending"],
+          description: "Filter by status",
+        },
+        per_page: {
+          type: "number",
+          description: "Results per page (max 100)",
+          default: 10,
+        },
+      },
+      required: ["repo"],
+    },
+    handler: async (args: any) => {
+      let runs;
+      if (args.workflow_id) {
+        runs = await octokit.actions.listWorkflowRuns({
+          owner: config.githubOwner,
+          repo: args.repo,
+          workflow_id: args.workflow_id,
+          branch: args.branch,
+          status: args.status,
+          per_page: args.per_page || 10,
+        });
+      } else {
+        runs = await octokit.actions.listWorkflowRunsForRepo({
+          owner: config.githubOwner,
+          repo: args.repo,
+          branch: args.branch,
+          status: args.status,
+          per_page: args.per_page || 10,
+        });
+      }
+      return {
+        total_count: runs.data.total_count,
+        runs: runs.data.workflow_runs.map((r) => ({
+          id: r.id,
+          name: r.name,
+          workflow: r.workflow_id,
+          status: r.status,
+          conclusion: r.conclusion,
+          branch: r.head_branch,
+          event: r.event,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+          url: r.html_url,
+          run_number: r.run_number,
+        })),
+      };
+    },
+  },
+
+  get_workflow_run: {
+    name: "get_workflow_run",
+    description: "Get details of a specific workflow run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        run_id: { type: "number", description: "Workflow run ID" },
+      },
+      required: ["repo", "run_id"],
+    },
+    handler: async (args: any) => {
+      const run = await octokit.actions.getWorkflowRun({
+        owner: config.githubOwner,
+        repo: args.repo,
+        run_id: args.run_id,
+      });
+      return {
+        id: run.data.id,
+        name: run.data.name,
+        status: run.data.status,
+        conclusion: run.data.conclusion,
+        branch: run.data.head_branch,
+        commit_sha: run.data.head_sha,
+        commit_message: run.data.head_commit?.message,
+        event: run.data.event,
+        actor: run.data.actor?.login,
+        created_at: run.data.created_at,
+        updated_at: run.data.updated_at,
+        run_started_at: run.data.run_started_at,
+        url: run.data.html_url,
+        run_number: run.data.run_number,
+        run_attempt: run.data.run_attempt,
+      };
+    },
+  },
+
+  list_workflow_run_jobs: {
+    name: "list_workflow_run_jobs",
+    description: "List jobs for a workflow run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        run_id: { type: "number", description: "Workflow run ID" },
+      },
+      required: ["repo", "run_id"],
+    },
+    handler: async (args: any) => {
+      const jobs = await octokit.actions.listJobsForWorkflowRun({
+        owner: config.githubOwner,
+        repo: args.repo,
+        run_id: args.run_id,
+      });
+      return jobs.data.jobs.map((j) => ({
+        id: j.id,
+        name: j.name,
+        status: j.status,
+        conclusion: j.conclusion,
+        started_at: j.started_at,
+        completed_at: j.completed_at,
+        url: j.html_url,
+        steps: j.steps?.map((s) => ({
+          name: s.name,
+          status: s.status,
+          conclusion: s.conclusion,
+          number: s.number,
+        })),
+      }));
+    },
+  },
 };
