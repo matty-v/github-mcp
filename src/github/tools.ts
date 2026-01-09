@@ -307,4 +307,112 @@ export const tools: Record<string, Tool> = {
       };
     },
   },
+
+  get_pull_request: {
+    name: "get_pull_request",
+    description: "Get details of a specific pull request",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        pull_number: { type: "number", description: "PR number" },
+      },
+      required: ["repo", "pull_number"],
+    },
+    handler: async (args: any) => {
+      const pr = await octokit.pulls.get({
+        owner: config.githubOwner,
+        repo: args.repo,
+        pull_number: args.pull_number,
+      });
+      return {
+        number: pr.data.number,
+        title: pr.data.title,
+        body: pr.data.body,
+        state: pr.data.state,
+        draft: pr.data.draft,
+        merged: pr.data.merged,
+        mergeable: pr.data.mergeable,
+        mergeable_state: pr.data.mergeable_state,
+        head: pr.data.head.ref,
+        base: pr.data.base.ref,
+        user: pr.data.user?.login,
+        url: pr.data.html_url,
+        created_at: pr.data.created_at,
+        updated_at: pr.data.updated_at,
+        additions: pr.data.additions,
+        deletions: pr.data.deletions,
+        changed_files: pr.data.changed_files,
+      };
+    },
+  },
+
+  list_pr_checks: {
+    name: "list_pr_checks",
+    description: "List CI check runs for a pull request",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        pull_number: { type: "number", description: "PR number" },
+      },
+      required: ["repo", "pull_number"],
+    },
+    handler: async (args: any) => {
+      // First get the PR to find the head SHA
+      const pr = await octokit.pulls.get({
+        owner: config.githubOwner,
+        repo: args.repo,
+        pull_number: args.pull_number,
+      });
+      const sha = pr.data.head.sha;
+
+      // Get check runs for that commit
+      const checks = await octokit.checks.listForRef({
+        owner: config.githubOwner,
+        repo: args.repo,
+        ref: sha,
+      });
+
+      return {
+        total_count: checks.data.total_count,
+        checks: checks.data.check_runs.map((c) => ({
+          name: c.name,
+          status: c.status,
+          conclusion: c.conclusion,
+          started_at: c.started_at,
+          completed_at: c.completed_at,
+          url: c.html_url,
+        })),
+      };
+    },
+  },
+
+  list_pr_reviews: {
+    name: "list_pr_reviews",
+    description: "List reviews on a pull request",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        pull_number: { type: "number", description: "PR number" },
+      },
+      required: ["repo", "pull_number"],
+    },
+    handler: async (args: any) => {
+      const reviews = await octokit.pulls.listReviews({
+        owner: config.githubOwner,
+        repo: args.repo,
+        pull_number: args.pull_number,
+      });
+      return reviews.data.map((r) => ({
+        id: r.id,
+        user: r.user?.login,
+        state: r.state,
+        body: r.body,
+        submitted_at: r.submitted_at,
+        url: r.html_url,
+      }));
+    },
+  },
 };
