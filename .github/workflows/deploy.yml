@@ -1,0 +1,61 @@
+name: Deploy to Cloud Functions
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: kinetic-object-322814
+  REGION: us-central1
+  FUNCTION_NAME: github-mcp
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: github-actions-deploy@kinetic-object-322814.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Functions
+        run: |
+          gcloud functions deploy ${{ env.FUNCTION_NAME }} \
+            --gen2 \
+            --region=${{ env.REGION }} \
+            --runtime=nodejs20 \
+            --entry-point=githubMcp \
+            --trigger-http \
+            --allow-unauthenticated \
+            --memory=256MB \
+            --timeout=60s \
+            --set-env-vars="BASE_URL=${{ secrets.BASE_URL }},GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},ALLOWED_EMAIL=${{ secrets.ALLOWED_EMAIL }},GITHUB_PAT=${{ secrets.GITHUB_PAT }},GITHUB_OWNER=${{ secrets.GITHUB_OWNER }}"
+
+      - name: Show deployed URL
+        run: |
+          URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} --region=${{ env.REGION }} --gen2 --format="value(serviceConfig.uri)")
+          echo "Deployed to: $URL"
