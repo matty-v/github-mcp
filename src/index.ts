@@ -4,9 +4,6 @@ import { oauthRouter } from "./auth/oauth.js";
 import { mcpRouter } from "./mcp/handler.js";
 import { generateLandingPage } from "./landing.js";
 
-// Import state to start cleanup interval
-import "./auth/state.js";
-
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
