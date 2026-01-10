@@ -9,7 +9,7 @@ A personal GitHub MCP server for Claude.ai with Google OAuth authentication. Dep
 - Google OAuth authentication (only your email allowed)
 - Landing page with tool documentation
 
-## Tools (15 total)
+## Tools (17 total)
 
 ### Repositories
 | Tool | Description |
@@ -41,6 +41,8 @@ A personal GitHub MCP server for Claude.ai with Google OAuth authentication. Dep
 | `list_workflow_runs` | List recent runs (filter by workflow, branch, status) |
 | `get_workflow_run` | Get run details (status, conclusion, commit) |
 | `list_workflow_run_jobs` | List jobs and steps for a run |
+| `rerun_workflow` | Rerun all jobs in a workflow run |
+| `rerun_failed_jobs` | Rerun only the failed jobs in a workflow run |
 
 ## Setup
 

@@ -579,4 +579,54 @@ export const tools: Record<string, Tool> = {
       }));
     },
   },
+
+  rerun_workflow: {
+    name: "rerun_workflow",
+    description: "Rerun all jobs in a workflow run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        run_id: { type: "number", description: "Workflow run ID" },
+      },
+      required: ["repo", "run_id"],
+    },
+    handler: async (args: any) => {
+      await octokit.actions.reRunWorkflow({
+        owner: config.githubOwner,
+        repo: args.repo,
+        run_id: args.run_id,
+      });
+      return {
+        success: true,
+        message: `Workflow run ${args.run_id} has been queued for rerun`,
+        run_id: args.run_id,
+      };
+    },
+  },
+
+  rerun_failed_jobs: {
+    name: "rerun_failed_jobs",
+    description: "Rerun only the failed jobs in a workflow run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        run_id: { type: "number", description: "Workflow run ID" },
+      },
+      required: ["repo", "run_id"],
+    },
+    handler: async (args: any) => {
+      await octokit.actions.reRunWorkflowFailedJobs({
+        owner: config.githubOwner,
+        repo: args.repo,
+        run_id: args.run_id,
+      });
+      return {
+        success: true,
+        message: `Failed jobs in workflow run ${args.run_id} have been queued for rerun`,
+        run_id: args.run_id,
+      };
+    },
+  },
 };
