@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
-
 // Validate required config at startup
 const required = [
   "BASE_URL",
@@ -8,6 +6,7 @@ const required = [
   "ALLOWED_EMAIL",
   "GITHUB_PAT",
   "GITHUB_OWNER",
+  "JWT_SECRET",
 ];
 
 for (const key of required) {
@@ -28,7 +27,7 @@ export const config = {
   allowedEmail: process.env.ALLOWED_EMAIL!,
 
   // JWT signing for tokens issued to Claude
-  jwtSecret: process.env.JWT_SECRET || uuidv4(),
+  jwtSecret: process.env.JWT_SECRET!,
 
   // GitHub (for API calls)
   githubPat: process.env.GITHUB_PAT!,
