@@ -9,12 +9,13 @@ A personal GitHub MCP server for Claude.ai with Google OAuth authentication. Dep
 - Google OAuth authentication (only your email allowed)
 - Landing page with tool documentation
 
-## Tools (17 total)
+## Tools (18 total)
 
 ### Repositories
 | Tool | Description |
 |------|-------------|
 | `list_repos` | List your GitHub repositories |
+| `create_repo` | Create a new GitHub repository |
 
 ### Issues
 | Tool | Description |
@@ -120,6 +121,8 @@ Once connected, you can say things like:
 
 > "List my recent repos"
 
+> "Create a new repository called 'my-project' with a Node.js .gitignore and MIT license"
+
 > "Create an issue in my project repo titled 'Add dark mode'"
 
 > "Show me open PRs in my website repo"
@@ -127,6 +130,29 @@ Once connected, you can say things like:
 > "What's the status of the latest GitHub Actions run on main?"
 
 > "Get the reviews on PR #42 in my api repo"
+
+### Creating Repositories
+
+The `create_repo` tool supports several options:
+
+```javascript
+// Minimal example - public repo with no initialization
+create_repo({ name: "my-new-repo" })
+
+// Full example - private repo with README, .gitignore, and license
+create_repo({
+  name: "my-project",
+  description: "A sample project",
+  private: true,
+  auto_init: true,              // Creates README.md
+  gitignore_template: "Node",   // Adds Node.js .gitignore
+  license_template: "mit"       // Adds MIT license
+})
+```
+
+Available `.gitignore` templates include: `Node`, `Python`, `Ruby`, `Java`, `Go`, `Rust`, and many more.
+
+Available license templates include: `mit`, `apache-2.0`, `gpl-3.0`, `bsd-2-clause`, `bsd-3-clause`, and others.
 
 ## Local Development
 

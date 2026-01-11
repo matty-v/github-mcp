@@ -629,4 +629,78 @@ export const tools: Record<string, Tool> = {
       };
     },
   },
+
+  create_repo: {
+    name: "create_repo",
+    description: "Create a new GitHub repository for the authenticated user",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Repository name (required)",
+        },
+        description: {
+          type: "string",
+          description: "Repository description",
+        },
+        private: {
+          type: "boolean",
+          description: "Whether the repo should be private",
+          default: false,
+        },
+        auto_init: {
+          type: "boolean",
+          description: "Initialize with README",
+          default: false,
+        },
+        gitignore_template: {
+          type: "string",
+          description: "Language-specific .gitignore template (e.g., 'Node', 'Python')",
+        },
+        license_template: {
+          type: "string",
+          description: "License template (e.g., 'mit', 'apache-2.0')",
+        },
+      },
+      required: ["name"],
+    },
+    handler: async (args: any) => {
+      try {
+        const repo = await octokit.repos.createForAuthenticatedUser({
+          name: args.name,
+          description: args.description,
+          private: args.private || false,
+          auto_init: args.auto_init || false,
+          gitignore_template: args.gitignore_template,
+          license_template: args.license_template,
+        });
+        return {
+          name: repo.data.name,
+          full_name: repo.data.full_name,
+          description: repo.data.description,
+          private: repo.data.private,
+          url: repo.data.html_url,
+          clone_url: repo.data.clone_url,
+          default_branch: repo.data.default_branch,
+        };
+      } catch (error: any) {
+        // Handle common error cases
+        if (error.status === 422) {
+          // Validation error (e.g., name already exists or invalid name)
+          const message = error.response?.data?.message || "Validation error";
+          throw new Error(`Repository creation failed: ${message}`);
+        } else if (error.status === 403) {
+          // Permission/scope issue
+          throw new Error("Permission denied: Check that your GitHub token has 'public_repo' or 'repo' scope");
+        } else if (error.status === 429) {
+          // Rate limiting
+          throw new Error("Rate limit exceeded: Please try again later");
+        } else {
+          // Generic error
+          throw new Error(`Failed to create repository: ${error.message}`);
+        }
+      }
+    },
+  },
 };
