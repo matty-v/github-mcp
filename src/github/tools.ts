@@ -580,6 +580,30 @@ export const tools: Record<string, Tool> = {
     },
   },
 
+  get_job_logs: {
+    name: "get_job_logs",
+    description: "Get raw log output for a GitHub Actions job. Use this to debug CI failures.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: { type: "string", description: "Repository name" },
+        job_id: { type: "number", description: "Job ID from list_workflow_run_jobs" },
+      },
+      required: ["repo", "job_id"],
+    },
+    handler: async (args: any) => {
+      const response = await octokit.actions.downloadJobLogsForWorkflowRun({
+        owner: config.githubOwner,
+        repo: args.repo,
+        job_id: args.job_id,
+      });
+      return {
+        job_id: args.job_id,
+        logs: response.data,
+      };
+    },
+  },
+
   rerun_workflow: {
     name: "rerun_workflow",
     description: "Rerun all jobs in a workflow run",
