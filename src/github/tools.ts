@@ -727,4 +727,215 @@ export const tools: Record<string, Tool> = {
       }
     },
   },
+
+  get_file_contents: {
+    name: "get_file_contents",
+    description: "Get file contents or directory listing from a GitHub repository",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: {
+          type: "string",
+          description: "Repository name (without owner)",
+        },
+        path: {
+          type: "string",
+          description: "Path to file or directory (e.g., 'src/index.ts', 'package.json', or 'src/components')",
+        },
+        ref: {
+          type: "string",
+          description: "Branch, tag, or commit SHA (defaults to default branch)",
+        },
+      },
+      required: ["repo", "path"],
+    },
+    handler: async (args: any) => {
+      try {
+        const response = await octokit.repos.getContent({
+          owner: config.githubOwner,
+          repo: args.repo,
+          path: args.path,
+          ref: args.ref,
+        });
+
+        // Handle directory response
+        if (Array.isArray(response.data)) {
+          return {
+            type: "directory",
+            path: args.path,
+            entries: response.data.map((item: any) => ({
+              name: item.name,
+              path: item.path,
+              type: item.type,
+              size: item.size,
+              sha: item.sha,
+              url: item.html_url,
+            })),
+          };
+        }
+
+        // Handle file response
+        const fileData = response.data as any;
+        if (fileData.type === "file") {
+          // Decode base64 content
+          const content = fileData.content
+            ? Buffer.from(fileData.content, "base64").toString("utf-8")
+            : "";
+
+          return {
+            type: "file",
+            name: fileData.name,
+            path: fileData.path,
+            size: fileData.size,
+            sha: fileData.sha,
+            content: content,
+            url: fileData.html_url,
+          };
+        }
+
+        // Handle other types (symlink, submodule)
+        return {
+          type: fileData.type,
+          name: fileData.name,
+          path: fileData.path,
+          url: fileData.html_url,
+        };
+      } catch (error: any) {
+        if (error.status === 404) {
+          throw new Error(`File or directory not found: ${args.path}`);
+        } else if (error.status === 403) {
+          throw new Error("Permission denied: Check repository access and token scopes");
+        } else {
+          throw new Error(`Failed to get file contents: ${error.message}`);
+        }
+      }
+    },
+  },
+
+  get_repo_tree: {
+    name: "get_repo_tree",
+    description: "Get the full file tree structure of a GitHub repository",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: {
+          type: "string",
+          description: "Repository name (without owner)",
+        },
+        ref: {
+          type: "string",
+          description: "Branch name or commit SHA (default: HEAD)",
+        },
+        recursive: {
+          type: "boolean",
+          description: "Get full tree recursively (default: true)",
+          default: true,
+        },
+      },
+      required: ["repo"],
+    },
+    handler: async (args: any) => {
+      try {
+        // First get the ref to find the tree SHA
+        const ref = args.ref || "HEAD";
+        const refData = await octokit.git.getRef({
+          owner: config.githubOwner,
+          repo: args.repo,
+          ref: ref.startsWith("refs/") ? ref : `heads/${ref}`,
+        });
+
+        const commitSha = refData.data.object.sha;
+
+        // Get the commit to find the tree SHA
+        const commit = await octokit.git.getCommit({
+          owner: config.githubOwner,
+          repo: args.repo,
+          commit_sha: commitSha,
+        });
+
+        const treeSha = commit.data.tree.sha;
+
+        // Get the tree
+        const tree = await octokit.git.getTree({
+          owner: config.githubOwner,
+          repo: args.repo,
+          tree_sha: treeSha,
+          recursive: String(args.recursive !== false),
+        });
+
+        return {
+          sha: tree.data.sha,
+          truncated: tree.data.truncated,
+          tree: tree.data.tree.map((item: any) => ({
+            path: item.path,
+            mode: item.mode,
+            type: item.type,
+            sha: item.sha,
+            size: item.size,
+            url: item.url,
+          })),
+        };
+      } catch (error: any) {
+        if (error.status === 404) {
+          throw new Error(`Repository or ref not found: ${args.repo}${args.ref ? ` (ref: ${args.ref})` : ""}`);
+        } else if (error.status === 403) {
+          throw new Error("Permission denied: Check repository access and token scopes");
+        } else if (error.status === 409) {
+          throw new Error("Git repository is empty");
+        } else {
+          throw new Error(`Failed to get repository tree: ${error.message}`);
+        }
+      }
+    },
+  },
+
+  get_blob: {
+    name: "get_blob",
+    description: "Get a git blob (file contents) by SHA. Useful for large files that exceed the 1MB limit of get_file_contents",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repo: {
+          type: "string",
+          description: "Repository name (without owner)",
+        },
+        file_sha: {
+          type: "string",
+          description: "SHA of the blob to retrieve",
+        },
+      },
+      required: ["repo", "file_sha"],
+    },
+    handler: async (args: any) => {
+      try {
+        const blob = await octokit.git.getBlob({
+          owner: config.githubOwner,
+          repo: args.repo,
+          file_sha: args.file_sha,
+        });
+
+        // Decode base64 content
+        const content = blob.data.content
+          ? Buffer.from(blob.data.content, "base64").toString("utf-8")
+          : "";
+
+        return {
+          sha: blob.data.sha,
+          size: blob.data.size,
+          content: content,
+          encoding: blob.data.encoding,
+        };
+      } catch (error: any) {
+        if (error.status === 404) {
+          throw new Error(`Blob not found: ${args.file_sha}`);
+        } else if (error.status === 403) {
+          throw new Error("Permission denied: Check repository access and token scopes");
+        } else if (error.status === 422) {
+          throw new Error("Invalid blob SHA format");
+        } else {
+          throw new Error(`Failed to get blob: ${error.message}`);
+        }
+      }
+    },
+  },
 };
