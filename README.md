@@ -9,13 +9,16 @@ A personal GitHub MCP server for Claude.ai with Google OAuth authentication. Dep
 - Google OAuth authentication (only your email allowed)
 - Landing page with tool documentation
 
-## Tools (19 total)
+## Tools (22 total)
 
 ### Repositories
 | Tool | Description |
 |------|-------------|
 | `list_repos` | List your GitHub repositories |
 | `create_repo` | Create a new GitHub repository |
+| `get_file_contents` | Get file contents or directory listing from a repository |
+| `get_repo_tree` | Get the full file tree structure of a repository |
+| `get_blob` | Get a git blob (file contents) by SHA for large files |
 
 ### Issues
 | Tool | Description |
@@ -154,6 +157,44 @@ create_repo({
 Available `.gitignore` templates include: `Node`, `Python`, `Ruby`, `Java`, `Go`, `Rust`, and many more.
 
 Available license templates include: `mit`, `apache-2.0`, `gpl-3.0`, `bsd-2-clause`, `bsd-3-clause`, and others.
+
+### Reading Repository Files
+
+The file content tools allow Claude to examine source code, configuration files, and project structure without cloning repositories:
+
+```javascript
+// Get a specific file's contents
+get_file_contents({
+  repo: "my-repo",
+  path: "src/index.ts"
+})
+
+// List files in a directory
+get_file_contents({
+  repo: "my-repo",
+  path: "src/components"
+})
+
+// Get file from specific branch or commit
+get_file_contents({
+  repo: "my-repo",
+  path: "package.json",
+  ref: "develop"  // or a commit SHA
+})
+
+// Get full repository file tree (recursive)
+get_repo_tree({
+  repo: "my-repo",
+  ref: "main",
+  recursive: true
+})
+
+// Get large file by SHA (for files > 1MB)
+get_blob({
+  repo: "my-repo",
+  file_sha: "abc123..."  // SHA from tree or file listing
+})
+```
 
 ## Local Development
 
